@@ -30,10 +30,11 @@ function initMap() {
     attributionControl: false,
   });
 
-  // Tile layer — Stadia Maps Alidade Smooth
-  L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png', {
+  // Tile layer — CartoDB Positron (épuré, couleurs douces, gratuit)
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     maxZoom: 20,
-    attribution: '© Stadia Maps © OpenMapTiles © OpenStreetMap'
+    subdomains: 'abcd',
+    attribution: '© CartoDB © OpenStreetMap'
   }).addTo(map);
 
   L.control.attribution({ prefix: false, position: 'bottomright' }).addTo(map);
