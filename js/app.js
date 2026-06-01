@@ -30,11 +30,11 @@ function initMap() {
     attributionControl: false,
   });
 
-  // Tile layer — OpenStreetMap
- L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png', {
+  // Tile layer — Stadia Maps Alidade Smooth
+  L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png', {
     maxZoom: 20,
     attribution: '© Stadia Maps © OpenMapTiles © OpenStreetMap'
-}).addTo(map);
+  }).addTo(map);
 
   L.control.attribution({ prefix: false, position: 'bottomright' }).addTo(map);
   L.control.zoom({ position: 'topright' }).addTo(map);
