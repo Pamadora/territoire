@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Territoire"/>
+  <meta name="theme-color" content="#0D2B1E"/>
+  <title>Territoire</title>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icons/icon-192.png"/>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+
+  <style>
+    :root {
+      --green-dark: #0A5C36;
+      --green-mid: #1BA870;
+      --green-light: #2ECC8A;
+      --green-pale: #E8F7EF;
+      --green-border: #C5E8D5;
+      --bg: #F2FAF6;
+      --surface: #FFFFFF;
+      --text-primary: #0D2B1E;
+      --text-secondary: #6B9080;
+      --text-muted: #9BB0A8;
+      --radius: 14px;
+      --radius-sm: 9px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      height: 100%; overflow: hidden;
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+    }
+
+    /* ── APP SHELL ── */
+    #app { display: flex; flex-direction: column; height: 100vh; }
+
+    /* ── HEADER ── */
+    #header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px 10px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--green-border);
+      z-index: 100;
+      padding-top: max(14px, env(safe-area-inset-top));
+    }
+    .logo { display: flex; align-items: center; gap: 9px; }
+    .logo-icon {
+      width: 32px; height: 32px; border-radius: 9px;
+      background: linear-gradient(135deg, var(--green-mid), var(--green-dark));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .logo-text { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; color: var(--text-primary); }
+
+    .header-stats { display: flex; gap: 14px; }
+    .hstat { text-align: center; }
+    .hstat-val { font-size: 15px; font-weight: 700; color: var(--green-dark); line-height: 1; }
+    .hstat-label { font-size: 9px; color: var(--text-muted); margin-top: 1px; letter-spacing: 0.3px; text-transform: uppercase; }
+
+    /* ── TABS ── */
+    #tabs {
+      display: flex; background: var(--surface);
+      border-bottom: 1px solid var(--green-border);
+      z-index: 99;
+    }
+    .tab-btn {
+      flex: 1; padding: 11px 0; font-size: 12px; font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      border: none; background: transparent; cursor: pointer;
+      color: var(--text-muted); border-bottom: 2px solid transparent;
+      transition: all 0.15s; letter-spacing: 0.2px;
+    }
+    .tab-btn.active { color: var(--green-dark); border-bottom-color: var(--green-mid); }
+
+    /* ── CONTENT AREA ── */
+    #content { flex: 1; position: relative; overflow: hidden; }
+    .view { position: absolute; inset: 0; display: none; flex-direction: column; }
+    .view.active { display: flex; }
+
+    /* ── MAP VIEW ── */
+    #map { flex: 1; z-index: 1; }
+
+    .map-fab {
+      position: absolute; bottom: 24px; right: 18px; z-index: 500;
+      width: 52px; height: 52px; border-radius: 50%;
+      background: var(--green-dark); border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; color: white;
+      box-shadow: 0 4px 20px rgba(10,92,54,0.35);
+      transition: transform 0.15s, background 0.15s;
+    }
+    .map-fab:active { transform: scale(0.94); background: var(--green-mid); }
+    .map-fab.recording { background: #E8344A; box-shadow: 0 4px 20px rgba(232,52,74,0.35); animation: pulse 1.5s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 4px 20px rgba(232,52,74,0.35); }
+      50% { box-shadow: 0 4px 32px rgba(232,52,74,0.6); }
+    }
+
+    .map-info {
+      position: absolute; top: 12px; left: 12px; right: 12px; z-index: 500;
+      background: rgba(255,255,255,0.95); backdrop-filter: blur(8px);
+      border-radius: var(--radius-sm); border: 1px solid var(--green-border);
+      padding: 10px 14px; display: none;
+      font-size: 12px; color: var(--text-secondary);
+      align-items: center; gap: 8px;
+    }
+    .map-info.visible { display: flex; }
+    .map-info-dot { width: 8px; height: 8px; border-radius: 50%; background: #E8344A; flex-shrink: 0; animation: pulse-dot 1s infinite; }
+    @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    .map-progress {
+      position: absolute; bottom: 90px; left: 14px; z-index: 500;
+      background: rgba(255,255,255,0.95); backdrop-filter: blur(8px);
+      border-radius: var(--radius-sm); border: 1px solid var(--green-border);
+      padding: 10px 13px; min-width: 160px;
+    }
+    .mp-label { font-size: 10px; color: var(--text-muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.4px; }
+    .mp-bar { height: 4px; background: var(--green-border); border-radius: 2px; overflow: hidden; }
+    .mp-fill { height: 100%; background: linear-gradient(90deg, var(--green-mid), var(--green-light)); border-radius: 2px; transition: width 0.5s ease; }
+    .mp-pct { font-size: 13px; font-weight: 700; color: var(--green-dark); margin-top: 4px; }
+
+    /* ── JOURNAL VIEW ── */
+    #journal { overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; background: var(--bg); }
+
+    .journal-empty {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 12px; color: var(--text-muted); text-align: center;
+      padding: 40px 24px;
+    }
+    .journal-empty-icon { font-size: 48px; opacity: 0.4; }
+    .journal-empty p { font-size: 14px; line-height: 1.6; max-width: 220px; }
+
+    .street-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--green-border); padding: 13px 15px;
+      display: flex; align-items: center; gap: 12px;
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .street-color {
+      width: 4px; height: 44px; border-radius: 2px; flex-shrink: 0;
+      background: var(--green-mid);
+    }
+    .street-info { flex: 1; min-width: 0; }
+    .street-name { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .street-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+    .street-badge {
+      font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 99px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .badge-first { background: #FFF3DC; color: #8A5500; }
+    .badge-recent { background: #E8F7EF; color: #0A5C36; }
+    .badge-familiar { background: #E8F0FF; color: #2845A0; }
+
+    /* ── STATS VIEW ── */
+    #stats { overflow-y: auto; padding: 14px; background: var(--bg); }
+
+    .stats-hero {
+      background: linear-gradient(135deg, var(--green-dark), #1BA870);
+      border-radius: var(--radius); padding: 22px; margin-bottom: 14px; color: white;
+      text-align: center;
+    }
+    .stats-hero-num { font-size: 52px; font-weight: 700; line-height: 1; letter-spacing: -2px; }
+    .stats-hero-label { font-size: 13px; opacity: 0.75; margin-top: 4px; letter-spacing: 0.3px; }
+
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .stat-card {
+      background: var(--surface); border-radius: var(--radius-sm);
+      border: 1px solid var(--green-border); padding: 14px 13px;
+    }
+    .stat-card-val { font-size: 24px; font-weight: 700; color: var(--green-dark); letter-spacing: -0.5px; }
+    .stat-card-label { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+    .stat-card-icon { font-size: 20px; margin-bottom: 6px; }
+
+    .section-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin: 16px 0 8px; }
+
+    .achievement {
+      background: var(--surface); border-radius: var(--radius-sm);
+      border: 1px solid var(--green-border); padding: 12px 14px;
+      display: flex; align-items: center; gap: 12px; margin-bottom: 7px;
+    }
+    .achievement-icon { font-size: 24px; flex-shrink: 0; }
+    .achievement-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .achievement-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .achievement.locked { opacity: 0.45; }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--green-dark); color: white;
+      padding: 10px 18px; border-radius: 99px; font-size: 13px; font-weight: 500;
+      z-index: 9999; opacity: 0; transition: all 0.25s ease; white-space: nowrap;
+      pointer-events: none;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── LEAFLET OVERRIDES ── */
+    .leaflet-container { font-family: 'DM Sans', sans-serif; }
+    .explored-street { stroke: #2ECC8A; stroke-width: 5; stroke-opacity: 0.85; fill: none; stroke-linecap: round; }
+    .explored-street.fresh { stroke: #0A5C36; stroke-width: 6; stroke-opacity: 1; }
+
+    /* bottom safe area */
+    #tabs { padding-bottom: env(safe-area-inset-bottom); }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <div id="header">
+    <div class="logo">
+      <div class="logo-icon">🗺</div>
+      <span class="logo-text">territoire</span>
+    </div>
+    <div class="header-stats">
+      <div class="hstat"><div class="hstat-val" id="h-streets">0</div><div class="hstat-label">rues</div></div>
+      <div class="hstat"><div class="hstat-val" id="h-km">0</div><div class="hstat-label">km</div></div>
+      <div class="hstat"><div class="hstat-val" id="h-days">0</div><div class="hstat-label">jours</div></div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div id="tabs">
+    <button class="tab-btn active" onclick="switchTab('map', this)">🗺 Carte</button>
+    <button class="tab-btn" onclick="switchTab('journal', this)">📋 Journal</button>
+    <button class="tab-btn" onclick="switchTab('stats', this)">📊 Stats</button>
+  </div>
+
+  <!-- CONTENT -->
+  <div id="content">
+
+    <!-- MAP VIEW -->
+    <div id="view-map" class="view active">
+      <div id="map"></div>
+      <div class="map-info" id="map-info">
+        <div class="map-info-dot"></div>
+        <span id="map-info-text">Exploration en cours…</span>
+      </div>
+      <div class="map-progress" id="map-progress">
+        <div class="mp-label">Zone explorée</div>
+        <div class="mp-bar"><div class="mp-fill" id="mp-fill" style="width:0%"></div></div>
+        <div class="mp-pct" id="mp-pct">0 rues</div>
+      </div>
+      <button class="map-fab" id="fab" onclick="toggleTracking()">▶</button>
+    </div>
+
+    <!-- JOURNAL VIEW -->
+    <div id="view-journal" class="view">
+      <div id="journal">
+        <div class="journal-empty" id="journal-empty">
+          <div class="journal-empty-icon">🚶</div>
+          <p>Tes rues explorées apparaîtront ici. Lance une exploration sur la carte pour commencer !</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATS VIEW -->
+    <div id="view-stats" class="view">
+      <div id="stats">
+        <div class="stats-hero">
+          <div class="stats-hero-num" id="stat-streets-big">0</div>
+          <div class="stats-hero-label">RUES EXPLORÉES</div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-card-icon">📏</div><div class="stat-card-val" id="s-km">0</div><div class="stat-card-label">kilomètres</div></div>
+          <div class="stat-card"><div class="stat-card-icon">📅</div><div class="stat-card-val" id="s-days">0</div><div class="stat-card-label">jours actifs</div></div>
+          <div class="stat-card"><div class="stat-card-icon">🔥</div><div class="stat-card-val" id="s-streak">0</div><div class="stat-card-label">jours de suite</div></div>
+          <div class="stat-card"><div class="stat-card-icon">🏙</div><div class="stat-card-val" id="s-longest">–</div><div class="stat-card-label">plus longue rue</div></div>
+        </div>
+
+        <div class="section-title">Succès</div>
+        <div class="achievement" id="ach-first">
+          <div class="achievement-icon">🥾</div>
+          <div><div class="achievement-name">Premier pas</div><div class="achievement-desc">Explorer ta première rue</div></div>
+        </div>
+        <div class="achievement locked" id="ach-10">
+          <div class="achievement-icon">🗺</div>
+          <div><div class="achievement-name">Explorateur</div><div class="achievement-desc">10 rues explorées</div></div>
+        </div>
+        <div class="achievement locked" id="ach-50">
+          <div class="achievement-icon">🏆</div>
+          <div><div class="achievement-name">Connaisseur</div><div class="achievement-desc">50 rues explorées</div></div>
+        </div>
+        <div class="achievement locked" id="ach-100">
+          <div class="achievement-icon">👑</div>
+          <div><div class="achievement-name">Maître du quartier</div><div class="achievement-desc">100 rues explorées</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="js/app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
+  }
+</script>
+</body>
+</html>
